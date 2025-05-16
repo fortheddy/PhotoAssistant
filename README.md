@@ -1,7 +1,7 @@
 # PhotoAssistant-摄影师照片拷贝清理工具
 ## 功能简介
 
-本程序基于https://github.com/jessefeng2024/sd_copy_hub项目进行改进，根据我自己的需要添加和修改了部分功能。
+本程序基于https://github.com/jessefeng2024/sd_copy_hub   项目进行改进，根据我自己的需要添加和修改了部分功能。
 
 主要用于两个场景：
 
