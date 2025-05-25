@@ -1,41 +1,18 @@
-# # changelog:
-# # Version 1.8 - 2025-03-18
-# ## 功能特性
-# - 优化 UI 界面，使其更加美观和现代化。
-# - 在 UI 上添加简洁的使用说明书，方便用户了解程序运行方式。
-# - 若用户未选择日期，程序会拷贝卡上所有日期的文件。
-# - 优化日期选择部分的 UI，采用下拉框形式。
-# - 实现从 SD 卡拷贝图片和视频到指定目录，支持用户通过 GUI 指定图片、视频目标目录及 SD 卡目录。
-# - 基于拍摄日期或修改时间创建文件夹，完成图片、视频文件重命名。
-# - 处理文件名重复场景，通过添加序号避免文件覆盖。
-# - 集成哈希校验功能，保障文件拷贝准确性。
-# - GUI 界面添加进度条，实时展示拷贝进度并在完成后反馈结果。
-# - 增加活动名称输入功能，使拷贝后的文件夹名称包含活动名称。
-# - 当 SD 卡目录中没有可用的图片或视频文件时，提醒用户该路径为空。
-# 
-# ## 问题修复与优化
-# - 修复进度条卡住问题，拷贝完成后反馈最终生成的文件夹名称。
-# - 优化结果文字显示，支持自动换行。
-# - 解决进度条异常问题。
-# - 增加对 `.CR3` 文件的支持。
-# - 调整逻辑，放弃读取 EXIF 信息，改用文件修改时间确定日期。
-# - 添加详细日志，用于排查 `.CR3` 文件拷贝失败问题。
-# - 修复未选择日期直接点击开始拷贝程序无法正常使用的 BUG。
 
 import os
 import datetime
 import shutil
 import hashlib
 import logging
+import subprocess
 import sys
-from wsgiref.validate import check_status
 
-from PIL import Image
-from PIL.ExifTags import TAGS
 import configparser
 from pathlib import Path
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, \
-    QFileDialog, QProgressBar, QComboBox, QTextEdit, QMessageBox, QCheckBox, QTabWidget, QListWidget, QFileSystemModel, QTreeView
+    QFileDialog, QProgressBar, QComboBox, QTextEdit, QMessageBox, QCheckBox, QTabWidget, QListWidget, QFileSystemModel, \
+    QTreeView, QMenu
+from PyQt5.QtWidgets import QListWidgetItem
 from PyQt5.QtGui import QFont, QPalette, QColor
 from PyQt5.QtCore import QThread, pyqtSignal
 from send2trash import send2trash
@@ -47,6 +24,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 config = configparser.ConfigParser()
 config.read('config.ini')
 
+
 # 获取用户图片和视频文件夹路径
 def get_user_pictures_folder():
     if os.name == 'nt':  # Windows 系统
@@ -55,12 +33,14 @@ def get_user_pictures_folder():
         return os.path.join(str(Path.home()), 'Pictures')
     return None
 
+
 def get_user_videos_folder():
     if os.name == 'nt':  # Windows 系统
         return os.path.join(os.environ['USERPROFILE'], 'Videos')
     elif os.name == 'posix':  # macOS 或 Linux 系统
         return os.path.join(str(Path.home()), 'Movies')
     return None
+
 
 # 获取用户桌面路径
 def get_user_desktop_folder():
@@ -70,10 +50,12 @@ def get_user_desktop_folder():
         return os.path.join(str(Path.home()), 'Desktop')
     return None
 
+
 # 获取默认路径
 image_target_directory = config.get('Paths', 'image_target_directory', fallback=get_user_desktop_folder())
 video_target_directory = config.get('Paths', 'video_target_directory', fallback=get_user_desktop_folder())
 sd_card_directory = config.get('Paths', 'sd_card_directory', fallback='H:\\')
+
 
 class CopyThread(QThread):
     progress_signal = pyqtSignal(int)
@@ -98,7 +80,7 @@ class CopyThread(QThread):
             '.orf',  # 奥林巴斯 RAW 格式
             '.pef',  # 宾得 RAW 格式
             '.srw',  # 三星 RAW 格式
-            '.x3f'   # 适马 RAW 格式
+            '.x3f'  # 适马 RAW 格式
         )
         video_extensions = ('.mp4', '.avi', '.mov')
 
@@ -171,7 +153,8 @@ class CopyThread(QThread):
                     # 根据图片格式确定目标子文件夹
                     file_ext = os.path.splitext(file)[1].lower()
                     jpg_extensions = ('.jpg', '.jpeg', '.png')
-                    raw_extensions = ('.raw', '.nef', '.cr2', '.cr3', '.arw', '.dng', '.raf', '.orf', '.pef', '.srw', '.x3f')
+                    raw_extensions = (
+                    '.raw', '.nef', '.cr2', '.cr3', '.arw', '.dng', '.raf', '.orf', '.pef', '.srw', '.x3f')
 
                     if file_ext in jpg_extensions:
                         target_subfolder = os.path.join(folder_path, 'JPG')
@@ -223,6 +206,7 @@ class CopyThread(QThread):
         result_msg = f"拷贝完成，生成的文件夹有：{', '.join(created_folders)}"
         self.result_signal.emit(result_msg)
 
+
 # 修改基类为 QTreeView
 class CustomTreeView(QTreeView):
     def __init__(self, model):
@@ -251,6 +235,7 @@ class CustomTreeView(QTreeView):
                 subprocess.call(('xdg-open', path))
         except Exception as e:
             print(f"打开 {path} 时出错: {e}")
+
 
 class FileBrowserTab(QWidget):
     def __init__(self):
@@ -513,6 +498,7 @@ class FileBrowserTab(QWidget):
         else:
             print("目标目录不存在或未选择有效目录")
 
+
 class CopyTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -577,8 +563,9 @@ class CopyTab(QWidget):
         self.video_input.setFont(QFont('Arial', 12))
         video_button = QPushButton('选择目录')
         video_button.setFont(QFont('Arial', 12))
-        video_button.setStyleSheet("QPushButton { background-color: #05B8CC; color: white; border: none; border-radius: 5px; padding: 5px 10px; }"
-                                    "QPushButton:hover { background-color: #0497AB; }")
+        video_button.setStyleSheet(
+            "QPushButton { background-color: #05B8CC; color: white; border: none; border-radius: 5px; padding: 5px 10px; }"
+            "QPushButton:hover { background-color: #0497AB; }")
         video_button.clicked.connect(self.select_video_directory)
         video_layout.addWidget(video_label)
         video_layout.addWidget(self.video_input)
@@ -592,8 +579,9 @@ class CopyTab(QWidget):
         self.sd_input.setFont(QFont('Arial', 12))
         sd_button = QPushButton('选择目录')
         sd_button.setFont(QFont('Arial', 12))
-        sd_button.setStyleSheet("QPushButton { background-color: #05B8CC; color: white; border: none; border-radius: 5px; padding: 5px 10px; }"
-                                "QPushButton:hover { background-color: #0497AB; }")
+        sd_button.setStyleSheet(
+            "QPushButton { background-color: #05B8CC; color: white; border: none; border-radius: 5px; padding: 5px 10px; }"
+            "QPushButton:hover { background-color: #0497AB; }")
         sd_button.clicked.connect(self.select_sd_directory)
         sd_layout.addWidget(sd_label)
         sd_layout.addWidget(self.sd_input)
@@ -618,8 +606,9 @@ class CopyTab(QWidget):
         self.date_combo.addItem("全部日期")
         date_button = QPushButton('获取日期')
         date_button.setFont(QFont('Arial', 12))
-        date_button.setStyleSheet("QPushButton { background-color: #05B8CC; color: white; border: none; border-radius: 5px; padding: 5px 10px; }"
-                                  "QPushButton:hover { background-color: #0497AB; }")
+        date_button.setStyleSheet(
+            "QPushButton { background-color: #05B8CC; color: white; border: none; border-radius: 5px; padding: 5px 10px; }"
+            "QPushButton:hover { background-color: #0497AB; }")
         date_button.clicked.connect(self.get_dates)
         date_layout.addWidget(date_label)
         date_layout.addWidget(self.date_combo)
@@ -736,7 +725,7 @@ class CopyTab(QWidget):
             '.orf',  # 奥林巴斯 RAW 格式
             '.pef',  # 宾得 RAW 格式
             '.srw',  # 三星 RAW 格式
-            '.x3f'   # 适马 RAW 格式
+            '.x3f'  # 适马 RAW 格式
         )
         video_extensions = ('.mp4', '.avi', '.mov')
         dates = set()
@@ -783,6 +772,7 @@ class CopyTab(QWidget):
         else:
             self.result_label.setText(result)
 
+
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -801,8 +791,10 @@ class MainWindow(QWidget):
         tab_widget.addTab(file_browser_tab, "废片清理")
 
         layout = QVBoxLayout()
+        layout = QVBoxLayout()
         layout.addWidget(tab_widget)
         self.setLayout(layout)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
